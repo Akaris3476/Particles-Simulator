@@ -3,11 +3,12 @@
 
 const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
-const int PARTICLE_RADIUS = 3;
-const int DISTANCE_FROM_BORDER = PARTICLE_RADIUS*2;
+const int PARTICLE_RADIUS = 5;
+const int DISTANCE_FROM_BORDER = PARTICLE_RADIUS;
 
 class  Particle {
     private:
+
         float x;
         float y;
 
@@ -16,39 +17,49 @@ class  Particle {
 
         float vx_limit = 10;
         float vy_limit = 10;
-        float v_deadzone = 0.1;
+        float v_deadzone = 0.1f;
 
-        void checkUpDownBorder() {
-            float ceil = DISTANCE_FROM_BORDER;
-            float floor = SCREEN_HEIGHT - DISTANCE_FROM_BORDER;
 
-            if (y < ceil) {
-                vy = -vy;
-                float delta = ceil - y;
-                y = ceil + delta;
+        enum class BorderDirection {
+            LeftRight,
+            UpDown
+        };
+
+        void checkBorder(BorderDirection direction) {
+
+            int maxCoord, minCoord;
+            float* coord,* vCoord;
+
+            if (direction == BorderDirection::LeftRight) {
+                maxCoord = SCREEN_WIDTH - DISTANCE_FROM_BORDER;
+                minCoord = DISTANCE_FROM_BORDER;
+
+                coord = &x;
+                vCoord = &vx;
+            }
+            else {
+                maxCoord = SCREEN_HEIGHT - DISTANCE_FROM_BORDER;
+                minCoord = DISTANCE_FROM_BORDER;
+
+                coord = &y;
+                vCoord = &vy;
             }
 
-            if (y > floor) {
-                vy = -vy;
-                float delta = y - floor;
-                y = floor - delta;
-            }
-        }
+            if (*coord < minCoord) {
+                *vCoord = -(*vCoord);
+                float delta = minCoord - *coord;
+                *coord = minCoord + delta;
 
-        void checkLeftRightBorder() {
-            float left = DISTANCE_FROM_BORDER;
-            float right = SCREEN_WIDTH - DISTANCE_FROM_BORDER;
+                *vCoord = *vCoord * bounceModifier;
+            }
+            if (*coord > maxCoord) {
+                *vCoord = -(*vCoord);
+                float delta = *coord - maxCoord;
+                *coord = maxCoord - delta;
 
-            if (x < left) {
-                vx = -vx;
-                float delta = left - x;
-                x = left + delta;
+                *vCoord = *vCoord * bounceModifier;
             }
-            if (x > right) {
-                vx = -vx;
-                float delta = x - right ;
-                x = right - delta ;
-            }
+
         }
 
     public:
@@ -58,11 +69,11 @@ class  Particle {
 
         void set_x(float value) {
             x = value;
-            checkLeftRightBorder();
+            checkBorder(BorderDirection::LeftRight);
         }
         void set_y(float value) {
             y = value;
-            checkUpDownBorder();
+            checkBorder(BorderDirection::UpDown);
 
         }
 
@@ -97,8 +108,8 @@ class  Particle {
                 vy = -vy_limit;
                 return;
             }
-            if (abs(value) < v_deadzone && y > SCREEN_HEIGHT - DISTANCE_FROM_BORDER-2 ) {
-                vy = 0;
+            if (abs(value) < v_deadzone && y > SCREEN_HEIGHT - DISTANCE_FROM_BORDER-1 ) {
+                vy = 0.f;
                 return;
             }
             vy = value;
@@ -107,7 +118,10 @@ class  Particle {
 
         Color color;
 
-        float g = 5;
+        float g = 5.f;
+        float airResistanceModifier = 0.99f;
+        float bounceModifier = 0.7f;
+
 
 
         Particle() = default;
@@ -118,8 +132,8 @@ class  Particle {
 
 
         void applyAirResistance() {
-            set_vx(vx * 0.99);
-            set_vy(vy * 0.99);
+            set_vx(vx * airResistanceModifier);
+            set_vy(vy * airResistanceModifier);
         }
 
         void applyGravity() {
@@ -133,6 +147,10 @@ class  Particle {
         }
 };
 
+Color randomColor() {
+    return Color(rand() % 256, rand() % 256, rand() % 256, 255 );
+}
+
 int main(int argc, char** argv) {
 
 
@@ -140,17 +158,19 @@ int main(int argc, char** argv) {
     InitWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "Particle Simulator");
     SetTargetFPS(144);
 
-    int numParticles = 10;
+    int numParticles = 3000;
     std::vector<Particle> particles(numParticles);
 
     for (auto &p : particles) {
 
         p.set_x(rand() % SCREEN_WIDTH);
         p.set_y(rand() % SCREEN_HEIGHT);
-        p.set_vx(0);
-        p.set_vy(0);
-        p.color = GREEN;
+        p.set_vx(0.f);
+        p.set_vy(0.f);
+        p.color = randomColor();
     }
+
+
 
     // Main game loop
     while (!WindowShouldClose())    // Detect window close button or ESC key
@@ -160,7 +180,7 @@ int main(int argc, char** argv) {
 
         std::vector<Particle> newParticles;
         for (Particle &p : particles) {
-            //
+
             // if (rand() % 300 == 0 ) {
             //     Particle nowaya = p;
             //     nowaya.set_vx(rand());
@@ -174,39 +194,34 @@ int main(int argc, char** argv) {
 
 
 
-            // if (rand() % 2 == 0) {
-            //     p.set_vx(-p.get_vx() * 0.1);
-            //     p.set_vy(-p.get_vy() * 0.1);
-            // } else {
-            //     p.set_vx(p.get_vx() * 0.1);
-            //     p.set_vy(p.get_vy() * 0.1);
-            // }
-
-
-
             std::cout << p.get_vx() << ' ' << p.get_vy() << std::endl;
 
-            p.applyGravity();
             p.applyAirResistance();
+            p.applyGravity();
+
             p.applyVelocity();
 
 
         }
         particles.insert(particles.end(), newParticles.begin(), newParticles.end());
 
-
+        std::cout << "----------------------------------" << std::endl;
+        std::cout << "Number of particles:" << particles.size() << std::endl;
+        std::cout << "Current FPS: " << GetFPS() << std::endl;
 
         //----------------------------------------------------------------------------------
+
+
 
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
+
         ClearBackground(BLACK);
 
         for (auto &p : particles)
             DrawCircle(p.get_x(), p.get_y(), PARTICLE_RADIUS, p.color);
 
-        DrawText("", 190, 200, 40, WHITE);
 
         EndDrawing();
         //----------------------------------------------------------------------------------
@@ -219,3 +234,4 @@ int main(int argc, char** argv) {
 
     return 0;
 }
+
