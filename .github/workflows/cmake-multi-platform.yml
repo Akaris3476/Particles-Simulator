@@ -62,13 +62,20 @@ jobs:
         make
         sudo make install
 
-    - name: Install raylib (Windows)
+    - name: Clone and build raylib (Windows)
+
       if: matrix.os == 'windows-latest'
+
       shell: bash
+
       run: |
-        curl -L -o raylib.zip https://github.com/raysan5/raylib/releases/download/5.0/raylib-5.0_win64_msvc16.zip
-        unzip raylib.zip -d external
-        echo "RAYLIB_PATH=$GITHUB_WORKSPACE/external/raylib-5.0_win64_msvc16/lib/cmake/raylib" >> $GITHUB_ENV
+
+        git clone --depth 1 https://github.com/raysan5/raylib.git raylib_src
+        mkdir raylib_src/build && cd raylib_src/build
+
+        cmake .. -DBUILD_EXAMPLES=OFF -DBUILD_GAMES=OFF -DCMAKE_BUILD_TYPE=Release        
+        cmake --build . --config Release
+        echo "RAYLIB_PATH=$GITHUB_WORKSPACE/build/raylib" >> $GITHUB_ENV
 
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
