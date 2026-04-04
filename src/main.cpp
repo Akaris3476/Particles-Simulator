@@ -1,4 +1,5 @@
 #include <iostream>
+#include <vector>
 #include "raylib.h"
 
 const int SCREEN_WIDTH = 800;
