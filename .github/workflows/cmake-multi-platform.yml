@@ -4,9 +4,11 @@ name: CMake on multiple platforms
 
 on:
   push:
-    branches: [ "**" ]
+    branches: [ "main" ]
+    tags:
+      - 'v*'
   pull_request:
-    branches: [ "**" ]
+    branches: [ "main" ]
 
 jobs:
   build:
@@ -128,6 +130,20 @@ jobs:
           ${{ steps.strings.outputs.build-output-dir }}/*.exe
           ${{ steps.strings.outputs.build-output-dir }}/particleSim
           ${{ steps.strings.outputs.build-output-dir }}/Release/*.exe
+
+    - name: Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        files: |
+          ${{ steps.strings.outputs.build-output-dir }}/*.exe
+          ${{ steps.strings.outputs.build-output-dir }}/particleSim
+          ${{ steps.strings.outputs.build-output-dir }}/Release/*.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    
+        
     # - name: Test
     #   working-directory: ${{ steps.strings.outputs.build-output-dir }}
     #   # Execute tests defined by the CMake configuration. Note that --build-config is needed because the default Windows generator is a multi-config generator (Visual Studio generator).
