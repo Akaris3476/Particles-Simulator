@@ -71,11 +71,15 @@ jobs:
       run: |
 
         git clone --depth 1 https://github.com/raysan5/raylib.git raylib_src
-        mkdir raylib_src/build && cd raylib_src/build
-
-        cmake .. -DBUILD_EXAMPLES=OFF -DBUILD_GAMES=OFF -DCMAKE_BUILD_TYPE=Release        
-        cmake --build . --config Release --target install
-        echo "RAYLIB_PATH=$GITHUB_WORKSPACE/raylib_src/build/raylib" >> $GITHUB_ENV
+          cmake -S raylib_src -B raylib_src/build \
+          -DBUILD_EXAMPLES=OFF \
+          -DBUILD_GAMES=OFF \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_INSTALL_PREFIX=$GITHUB_WORKSPACE/raylib_install
+        
+        cmake --build raylib_src/build --config Release --target install
+        
+        echo "RAYLIB_PATH=$GITHUB_WORKSPACE/raylib_install/lib/cmake/raylib" >> $GITHUB_ENV
 
     - name: Set reusable strings
       # Turn repeated input strings (such as the build output directory) into step outputs. These step outputs can be used throughout the workflow file.
