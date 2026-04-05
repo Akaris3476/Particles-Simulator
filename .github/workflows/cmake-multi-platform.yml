@@ -154,13 +154,9 @@ jobs:
       uses: softprops/action-gh-release@v2
       if: startsWith(github.ref, 'refs/tags/')
       with:
-        files: |
-          ${{ steps.strings.outputs.build-output-dir }}/*.exe
-          ${{ steps.strings.outputs.build-output-dir }}/particleSim
-          ${{ steps.strings.outputs.build-output-dir }}/Release/*.exe
+        files: particleSim-${{ matrix.os }}*
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
     
         
     # - name: Test
