@@ -1,6 +1,3 @@
-//
-// Created by Artem on 05/04/2026.
-//
 
 #ifndef PARTICLESIMULATOR_VMATH_H
 #define PARTICLESIMULATOR_VMATH_H
