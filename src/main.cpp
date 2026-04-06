@@ -7,7 +7,6 @@ const int SCREEN_WIDTH = 800;
 const int SCREEN_HEIGHT = 600;
 
 
-
 class Particle {
     private:
 
@@ -141,8 +140,8 @@ class Particle {
         float radius;
 
         float g = 5.f;
-        float airResistanceModifier = 0.98f;
-        float bounceModifier = 0.6f;
+        float airResistanceModifier = 0.985f;
+        float bounceModifier = 0.85f;
 
 
 
@@ -168,31 +167,37 @@ class Particle {
             bool collision = CheckCollisionCircles(get_coord(), radius,
                 particle.get_coord(), particle.radius);
 
+            if (!collision) return;
 
-            if (collision) {
+            Vector2 posA = get_coord();
+            Vector2 posB = particle.get_coord();
 
+            Vector2 vA = get_v();
+            Vector2 vB = particle.get_v();
 
-                float distance = vdistance(get_coord(), particle.get_coord());
-                if (distance == 0 ) {
-                    return;
-                }
-                float minDistance = radius+particle.radius;
+            float distance = vdistance(posA, posB);
+            if (distance == 0 )
+                return;
 
-                Vector2 vector_outwards = vsub(get_coord(), particle.get_coord());
-                Vector2 normal = vnormalize(vector_outwards);
+            float minDistance = radius+particle.radius;
+            float overlap = minDistance - distance;
 
+            Vector2 vector_outwards = vsub(posA, posB);
+            Vector2 normal = vnormalize(vector_outwards);
 
-                // in case of one particle stuck in another - get direction outwards and apply repulsion force
-                Vector2 repulsion = vmult(normal, minDistance - distance);
-                set_x(x + repulsion.x);
-                set_y(y + repulsion.y);
+            // in case of one particle stuck in another - get direction outwards and apply repulsion force
+            Vector2 repulsion = vmult(normal, overlap/2);
+            set_coord(vadd(posA, repulsion));
 
-                Vector2 p2vrelative = vsub(particle.get_v(), get_v());
-                Vector2 impulse = vmult(normal, vdot(p2vrelative, normal)*bounceModifier*0.5f);
+            Vector2 p2vrelative = vsub(vB, vA);
+            // if it's positive - particles are getting closer
+            float relVelNormalDot = vdot(p2vrelative, normal);
 
-                set_v(vadd(get_v(), impulse));
+            // if particles still stuck, but second particle flies away - don't apply impulse
+            if (relVelNormalDot > 0) {
+                Vector2 impulse = vmult(normal, vdot(p2vrelative, normal)*bounceModifier);
 
-
+                set_v(vadd(vA, impulse));
             }
 
         }
@@ -252,13 +257,11 @@ int main(int argc, char** argv) {
 
         //spawn new particles
         if (IsKeyDown(KEY_W)) {
-            Vector2 v(rand()%10, rand()%10);
-            Particle p(MousePos, v, PARTICLE_RADIUS, randomColor());
-            particles.push_back(p);
-
-            Vector2 v2(-rand()%10, -rand()%10);
-            Particle p2(MousePos, v2, PARTICLE_RADIUS, randomColor());
-            particles.push_back(p2);
+            for (int i = 0; i < 2; i++) {
+                Vector2 v(rand()%21-10, rand()%21-10);
+                Particle p(MousePos, v, PARTICLE_RADIUS, randomColor());
+                particles.push_back(p);
+            }
         }
 
         // std::vector<Particle> newParticles;
@@ -275,8 +278,6 @@ int main(int argc, char** argv) {
             // }
 
 
-            std::cout << p.get_vx() << ' ' << p.get_vy() << std::endl;
-
             p.applyAirResistance();
             p.applyGravity();
 
@@ -290,6 +291,7 @@ int main(int argc, char** argv) {
         }
         // particles.insert(particles.end(), newParticles.begin(), newParticles.end());
 
+        std::cout << std::endl << std::endl;
         std::cout << "----------------------------------" << std::endl;
         std::cout << "Number of particles:" << particles.size() << std::endl;
         std::cout << "Current FPS: " << GetFPS() << std::endl;
