@@ -3,8 +3,8 @@
 #include "raylib.h"
 #include "vmath.h"
 
-const int SCREEN_WIDTH = 800;
-const int SCREEN_HEIGHT = 600;
+const int SCREEN_WIDTH = 900;
+const int SCREEN_HEIGHT = 650;
 
 
 class Particle {
@@ -16,9 +16,8 @@ class Particle {
         float vx;
         float vy;
 
-        float vx_limit = 10;
-        float vy_limit = 10;
-        float v_deadzone = 0.2f;
+        float vx_limit = 15;
+        float vy_limit = 15;
 
 
         enum class BorderDirection {
@@ -29,36 +28,36 @@ class Particle {
         void checkBorder(BorderDirection direction) {
 
             float maxCoord, minCoord;
-            float* coord,* vCoord;
+            float* coord,* v;
 
             if (direction == BorderDirection::LeftRight) {
                 maxCoord = SCREEN_WIDTH - radius;
                 minCoord = radius;
 
                 coord = &x;
-                vCoord = &vx;
+                v = &vx;
             }
             else {
                 maxCoord = SCREEN_HEIGHT - radius;
                 minCoord = radius;
 
                 coord = &y;
-                vCoord = &vy;
+                v = &vy;
             }
 
             if (*coord < minCoord) {
-                *vCoord = -(*vCoord);
+                *v = -(*v);
                 float delta = minCoord - *coord;
                 *coord = minCoord + delta;
 
-                *vCoord = *vCoord * bounceModifier;
+                *v = *v * bounceModifier;
             }
             if (*coord > maxCoord) {
-                *vCoord = -(*vCoord);
+                *v = -(*v);
                 float delta = *coord - maxCoord;
                 *coord = maxCoord - delta;
 
-                *vCoord = *vCoord * bounceModifier;
+                *v = *v * bounceModifier;
             }
 
         }
@@ -105,10 +104,10 @@ class Particle {
                 return;
             }
 
-            if (abs(value) < v_deadzone ) {
-                vx = 0.f;
-                return;
-            }
+            // if (abs(value) < v_deadzone ) {
+            //     vx = 0.f;
+            //     return;
+            // }
 
             vx = value;
         }
@@ -124,10 +123,10 @@ class Particle {
                 vy = -vy_limit;
                 return;
             }
-            if (abs(value) < v_deadzone && y > SCREEN_HEIGHT - radius-1 ) {
-                vy = 0.f;
-                return;
-            }
+            // if (abs(value) < v_deadzone && y > SCREEN_HEIGHT - radius-1 ) {
+            //     vy = 0.f;
+            //     return;
+            // }
             vy = value;
         }
         void set_v(Vector2 value) {
@@ -139,9 +138,10 @@ class Particle {
         Color color;
         float radius;
 
-        float g = 5.f;
-        float airResistanceModifier = 0.985f;
-        float bounceModifier = 0.85f;
+        float g = 3.f;
+        float airResistanceModifier = 0.97f;
+        float bounceModifier = 0.8f;
+        // float v_deadzone = 0.3f;
 
 
 
@@ -185,9 +185,16 @@ class Particle {
             Vector2 vector_outwards = vsub(posA, posB);
             Vector2 normal = vnormalize(vector_outwards);
 
-            // in case of one particle stuck in another - get direction outwards and apply repulsion force
-            Vector2 repulsion = vmult(normal, overlap/2);
-            set_coord(vadd(posA, repulsion));
+            // make acceptable some overlap
+            if (overlap > 2.f)
+            {
+                // in case of one particle stuck in another - get direction outwards and apply repulsion force
+                Vector2 repulsion = vmult(normal, overlap/5);
+
+                set_v(vadd(vA, repulsion));
+                particle.set_v(vsub(vB, repulsion));
+            }
+
 
             Vector2 p2vrelative = vsub(vB, vA);
             // if it's positive - particles are getting closer
@@ -198,14 +205,16 @@ class Particle {
                 Vector2 impulse = vmult(normal, vdot(p2vrelative, normal)*bounceModifier);
 
                 set_v(vadd(vA, impulse));
+                particle.set_v(vsub(vB, impulse));
             }
 
         }
 
 
         void applyAirResistance() {
-            set_vx(vx * airResistanceModifier);
-            set_vy(vy * airResistanceModifier);
+            float slowing_force = 1 - airResistanceModifier;
+            Vector2 new_v = vmult(get_v(), 1-slowing_force*GetFrameTime());
+            set_v(new_v);
         }
 
         void applyGravity() {
@@ -252,49 +261,57 @@ int main(int argc, char** argv) {
     {
         // Update
         //----------------------------------------------------------------------------------
+        int system_v = 0;
 
         Vector2 MousePos = GetMousePosition();
 
         //spawn new particles
         if (IsKeyDown(KEY_W)) {
             for (int i = 0; i < 2; i++) {
-                Vector2 v(rand()%21-10, rand()%21-10);
+                Vector2 v(rand()%26-16, rand()%21-16);
                 Particle p(MousePos, v, PARTICLE_RADIUS, randomColor());
                 particles.push_back(p);
             }
         }
 
-        // std::vector<Particle> newParticles;
-        for (Particle &p : particles) {
-
-            // if (rand() % 300 == 0 ) {
-            //     Particle new_one = p;
-            //     new_one.set_vx(rand());
-            //     new_one.set_vy(rand());
-            //     newParticles.push_back(new_one);
-            //
-            //     p.set_vx(rand() % 5);
-            //     p.set_vy(rand() % 5);
-            // }
-
-
-            p.applyAirResistance();
+        for (auto& p : particles) {
             p.applyGravity();
-
-            for (Particle &p2 : particles) {
-                p.collision(p2);
-            }
-
-            p.applyVelocityToCoords();
-
-
+            p.applyAirResistance();
         }
+
+        for (int i = 0; i < particles.size(); i++) {
+            Particle& p = particles[i];
+
+            for (int j = i+1; j < particles.size(); j++) {
+                p.collision(particles[j]);
+            }
+        }
+
+        for (auto& p : particles) {
+            p.applyVelocityToCoords();
+            system_v += vmagnitude(p.get_v());
+        }
+
+        // std::vector<Particle> newParticles;
+        // for (Particle &p : particles) {
+        //
+        //     if (rand() % 300 == 0 ) {
+        //         Particle new_one = p;
+        //         new_one.set_vx(rand());
+        //         new_one.set_vy(rand());
+        //         newParticles.push_back(new_one);
+        //
+        //         p.set_vx(rand() % 5);
+        //         p.set_vy(rand() % 5);
+        //     }
+        // }
         // particles.insert(particles.end(), newParticles.begin(), newParticles.end());
 
         std::cout << std::endl << std::endl;
         std::cout << "----------------------------------" << std::endl;
         std::cout << "Number of particles:" << particles.size() << std::endl;
         std::cout << "Current FPS: " << GetFPS() << std::endl;
+        std::cout << "Sum of all velocities:" << system_v << std::endl;
 
 
         //----------------------------------------------------------------------------------
